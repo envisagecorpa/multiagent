@@ -1,50 +1,84 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+- Version change: Initial Template → 1.0.0
+- New constitution created with 5 core principles focused on static website development
+- Added principles:
+  * I. Minimal Dependencies (replaces PRINCIPLE_1)
+  * II. Mobile-First Responsive Design (replaces PRINCIPLE_2) 
+  * III. Accessibility Standards (replaces PRINCIPLE_3, marked NON-NEGOTIABLE)
+  * IV. Performance-First Implementation (replaces PRINCIPLE_4)
+  * V. Progressive Enhancement (replaces PRINCIPLE_5)
+- Added sections:
+  * Performance Standards (replaces SECTION_2)
+  * Accessibility & UX Standards (replaces SECTION_3)
+- Templates requiring updates:
+  ✅ constitution.md - created/updated
+  ✅ plan-template.md - Constitution Check section updated with new gates
+  ✅ spec-template.md - no updates needed (generic structure)
+  ✅ tasks-template.md - no updates needed (task-focused, constitution-agnostic)
+  ✅ command prompts - already properly reference constitution file
+- Follow-up TODOs: None - all placeholders filled, all templates updated
+-->
+
+# Multiagent Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Minimal Dependencies
+Every feature must prioritize native browser capabilities over external libraries. Dependencies are justified only when they provide essential functionality that cannot be reasonably implemented with vanilla HTML, CSS, and JavaScript. Each dependency must be evaluated for bundle size impact, maintenance overhead, and long-term sustainability.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+**Rationale**: Reduces attack surface, improves load times, ensures long-term maintainability, and decreases complexity.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### II. Mobile-First Responsive Design
+All interfaces must be designed mobile-first with progressive enhancement for larger screens. Responsive breakpoints must be tested across device categories (mobile, tablet, desktop). Touch targets must meet minimum size requirements (44px minimum). Navigation and interactions must work seamlessly across all viewport sizes.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+**Rationale**: Mobile traffic dominates web usage; mobile-first ensures core functionality works on constrained devices.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### III. Accessibility Standards (NON-NEGOTIABLE)
+All features must meet WCAG 2.1 AA standards as a minimum requirement. This includes semantic HTML, proper ARIA labels, keyboard navigation support, screen reader compatibility, and adequate color contrast ratios. Accessibility testing with assistive technologies is mandatory before feature completion.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+**Rationale**: Digital inclusion is a fundamental right; accessible design benefits all users, not just those with disabilities.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### IV. Performance-First Implementation
+Every feature must be evaluated for performance impact. Core Web Vitals (LCP, FID, CLS) must meet Google's "Good" thresholds. Assets must be optimized for size and delivery. Critical rendering path must be prioritized. Performance budgets are enforced through automated testing.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+**Rationale**: Performance directly impacts user experience, accessibility, and search engine rankings.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### V. Progressive Enhancement
+Core functionality must work without JavaScript. Enhanced experiences are layered on top of a solid HTML/CSS foundation. Features must degrade gracefully when JavaScript fails or is disabled. Critical user paths must remain functional across all enhancement levels.
+
+**Rationale**: Ensures reliability, improves accessibility, and provides fallbacks for network or device limitations.
+
+## Performance Standards
+
+All deliverables must meet the following performance criteria:
+- First Contentful Paint (FCP) < 2.5 seconds
+- Largest Contentful Paint (LCP) < 2.5 seconds
+- Cumulative Layout Shift (CLS) < 0.1
+- First Input Delay (FID) < 100 milliseconds
+- Total bundle size < 200KB gzipped for critical path
+- Images optimized with appropriate formats (WebP/AVIF with fallbacks)
+
+## Accessibility & UX Standards
+
+User experience consistency requirements:
+- Consistent visual hierarchy and typography scaling
+- Uniform interaction patterns across features
+- Predictable navigation and information architecture
+- Error states and loading indicators for all async operations
+- Form validation with clear, actionable feedback
+- Focus management for dynamic content and single-page applications
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes all other development practices and guidelines. All feature specifications, implementation plans, and code reviews must verify compliance with these principles. Any deviation requires explicit justification and documentation of alternative approaches considered.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+Amendments to this constitution require:
+1. Documentation of the proposed change and rationale
+2. Impact assessment on existing features and templates
+3. Update of dependent artifacts and templates
+4. Version increment following semantic versioning
+
+All development decisions must prioritize user experience and accessibility over developer convenience or implementation shortcuts.
+
+**Version**: 1.0.0 | **Ratified**: 2025-09-23 | **Last Amended**: 2025-09-23
