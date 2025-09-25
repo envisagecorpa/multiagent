@@ -231,9 +231,9 @@ document.getElementById('photo-input').addEventListener('change', (e) => {
 
 #### Display Photos in Grid
 ```javascript
-// Render photo grid with lazy loading
+// Render photo tile with lazy loading
 function renderPhotoGrid(albumId) {
-  const container = document.getElementById('photo-grid')
+  const container = document.getElementById('photo-tile')
   
   // Implement virtual scrolling for performance
   const observer = new IntersectionObserver((entries) => {
@@ -372,7 +372,7 @@ test('user can create and reorder albums', async ({ page }) => {
 ### 1. Image Optimization
 - Generate multiple thumbnail sizes (150px, 300px, 600px)
 - Use WebP format when supported with JPEG fallback
-- Implement lazy loading for photo grids
+- Implement lazy loading for photo tiles
 - Cache thumbnails in IndexedDB
 
 ### 2. Virtual Scrolling

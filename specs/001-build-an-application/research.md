@@ -56,7 +56,7 @@
 **Question**: How to handle 200+ photos per album efficiently?
 
 **Findings**:
-- Virtual scrolling for large photo grids
+- Virtual scrolling for large photo tiles
 - Intersection Observer for lazy loading thumbnails
 - Canvas-based thumbnail generation with size optimization
 - IndexedDB for caching processed thumbnails

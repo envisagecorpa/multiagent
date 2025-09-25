@@ -58,7 +58,7 @@ When creating this spec from a user prompt:
 - Q: When a user clicks on a photo tile in the album view, what should happen? → A: Display full-size photo in overlay/modal view
 - Q: What is the maximum number of photos per album before performance becomes a concern? → A: 200 photos (moderate collection size)
 - Q: How should the application handle user authentication and data isolation? → A: Traditional login with email/password
-- Q: How should photos be organized within an album's tile interface? → A: Chronological by date taken (newest first)
+- Q: How should photos be organized within an album's photo tile? → A: Chronological by date taken (newest first)
 - Q: What should happen when a user tries to create an album with a name that already exists? → A: Auto-append number (e.g., "Summer 2024 (2)")
 
 ## User Scenarios & Testing *(mandatory)*
@@ -70,7 +70,7 @@ A registered user logs into their account and wants to organize their personal p
 1. **Given** a collection of unorganized photos, **When** the user creates a new album with a date-based name, **Then** they can add selected photos to that album
 2. **Given** multiple albums exist on the main page, **When** the user drags an album to a different position, **Then** the album order is updated and persisted
 3. **Given** an album contains multiple photos, **When** the user opens the album, **Then** photos are displayed in a tile grid interface with thumbnails ordered chronologically (newest first)
-4. **Given** the user is viewing an album's tile interface, **When** they click on a photo tile, **Then** the photo displays in full-size overlay/modal view
+4. **Given** the user is viewing an album's photo tile, **When** they click on a photo tile, **Then** the photo displays in full-size overlay/modal view
 5. **Given** albums organized by date, **When** the user views the main page, **Then** albums are displayed in a clear, browsable layout
 
 ### Edge Cases
@@ -92,16 +92,16 @@ A registered user logs into their account and wants to organize their personal p
 - **FR-006**: System MUST prevent nested album structures (albums cannot contain other albums)
 - **FR-007**: System MUST allow users to add photos to existing albums
 - **FR-008**: System MUST allow users to remove photos from albums
-- **FR-009**: System MUST provide thumbnail previews of photos in the tile interface
+- **FR-009**: System MUST provide thumbnail previews of photos in the photo tile
 - **FR-009a**: System MUST display full-size photo in overlay/modal when user clicks on photo tile
-- **FR-010**: System MUST support photo file formats in JPG and PNG
+- **FR-010**: System MUST support photo file formats in JPG and PNG with file size no greater than 1M
 - **FR-011**: System MUST handle photo source - local files
-- **FR-012**: System MUST allow photo sharing/export capabilities to save locally
+- **FR-012**: System MUST allow photo download capabilities to save locally
 - **FR-013**: System MUST not allow album deletion until all photos in the album is deleted first. Display warning message to user to inform the user
 - **FR-014**: System MUST support multi-user access with email/password authentication
 - **FR-014a**: System MUST isolate each user's albums and photos from other users
 - **FR-014b**: System MUST provide secure user registration and login functionality
-- **FR-015**: System MUST maintain acceptable performance for albums containing up to 200 photos
+- **FR-015**: System MUST maintain acceptable performance for albums containing up to 200 photos. This means performance thresholds of grid render time < 500ms and scroll FPS > 50
 
 ### Key Entities *(include if feature involves data)*
 - **Album**: A container for photos with a user-defined name, creation date, and position order. Contains metadata for date grouping and display preferences.

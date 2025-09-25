@@ -178,7 +178,7 @@ ios/ or android/
 2. **Database Layer**: Schema creation, migration scripts, database service, connection management
 3. **Authentication System**: User registration, login, session management, password security
 4. **Album Management**: CRUD operations, drag-drop reordering, album grid, duplicate handling
-5. **Photo Management**: File upload, thumbnail generation, photo grid, modal display, EXIF processing
+5. **Photo Management**: File upload, thumbnail generation, photo tile, modal display, EXIF processing
 6. **UI Components**: Responsive layouts, accessibility, keyboard navigation, mobile interactions
 7. **Testing Suite**: Unit tests for services, integration tests for workflows, e2e user journeys
 8. **Performance Optimization**: Bundle optimization, lazy loading, virtual scrolling, Core Web Vitals
