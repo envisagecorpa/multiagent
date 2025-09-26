@@ -39,42 +39,42 @@
 Based on plan.md: Single project structure with `src/`, `tests/`, `public/` at repository root
 
 ## Phase 3.1: Setup & Configuration
-- [ ] T001 Initialize Vite project with SQLite WASM configuration in `vite.config.js`
-- [ ] T002 [P] Create project directory structure: `src/{components,services,utils,styles}`, `tests/{unit,integration,e2e}`, `public/`
-- [ ] T003 [P] Install dependencies: Vite, @sqlite.org/sqlite-wasm, Vitest, Playwright, ESLint, Prettier
-- [ ] T004 [P] Configure ESLint and Prettier with accessibility rules in `.eslintrc.js` and `.prettierrc`
-- [ ] T005 [P] Set up Vitest configuration in `vitest.config.js` for unit testing
-- [ ] T006 [P] Set up Playwright configuration in `playwright.config.js` for e2e testing
+- [x] T001 Initialize Vite project with SQLite WASM configuration in `vite.config.js`
+- [x] T002 [P] Create project directory structure: `src/{components,services,utils,styles}`, `tests/{unit,integration,e2e}`, `public/`
+- [x] T003 [P] Install dependencies: Vite, @sqlite.org/sqlite-wasm, Vitest, Playwright, ESLint, Prettier
+- [x] T004 [P] Configure ESLint and Prettier with accessibility rules in `.eslintrc.js` and `.prettierrc`
+- [x] T005 [P] Set up Vitest configuration in `vitest.config.js` for unit testing
+- [x] T006 [P] Set up Playwright configuration in `playwright.config.js` for e2e testing
 
 ## Phase 3.2: Database Layer & Tests (TDD) ⚠️ MUST COMPLETE BEFORE 3.3
 **CRITICAL: These tests MUST be written and MUST FAIL before ANY implementation**
 
 ### Database Schema Tests
-- [ ] T007 [P] Database schema test in `tests/unit/database-schema.test.js` - verify tables creation
-- [ ] T008 [P] Database migration test in `tests/unit/database-migrations.test.js` - test schema updates
+- [x] T007 [P] Database schema test in `tests/unit/database-schema.test.js` - verify tables creation
+- [x] T008 [P] Database migration test in `tests/unit/database-migrations.test.js` - test schema updates
 
 ### Service Contract Tests
-- [ ] T009 [P] AuthenticationService contract test in `tests/unit/auth-service.test.js` - registerUser, loginUser, validateSession
-- [ ] T010 [P] AlbumService contract test in `tests/unit/album-service.test.js` - createAlbum, getUserAlbums, updateAlbumOrder, deleteAlbum
-- [ ] T011 [P] PhotoService contract test in `tests/unit/photo-service.test.js` - addPhotosToAlbum, getAlbumPhotos, generateThumbnail
+- [x] T009 [P] AuthenticationService contract test in `tests/unit/auth-service.test.js` - registerUser, loginUser, validateSession, deleteAlbum
+- [x] T010 [P] AlbumService contract test in `tests/unit/album-service.test.js` - createAlbum, getUserAlbums, updateAlbumOrder, deleteAlbum
+- [x] T011 [P] PhotoService contract test in `tests/unit/photo-service.test.js` - addPhotosToAlbum, getAlbumPhotos, generateThumbnail
 
 ### Integration Tests
-- [ ] T012 [P] User registration flow test in `tests/integration/user-registration.test.js`
-- [ ] T013 [P] Album creation, reordering, and deletion test in `tests/integration/album-management.test.js`
-- [ ] T014 [P] Photo upload and display test in `tests/integration/photo-management.test.js`
-- [ ] T015 [P] Authentication flow test in `tests/integration/auth-flow.test.js`
+- [x] T012 [P] User registration flow test in `tests/integration/user-registration.test.js`
+- [x] T013 [P] Album creation, reordering, and deletion test in `tests/integration/album-management.test.js`
+- [x] T014 [P] Photo upload and display test in `tests/integration/photo-management.test.js`
+- [x] T015 [P] Authentication flow test in `tests/integration/auth-flow.test.js`
 
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
 
 ### Database Layer
-- [ ] T016 DatabaseService implementation in `src/services/database-service.js` - SQLite WASM initialization, schema creation
-- [ ] T017 Database schema creation in `src/services/database-service.js` - create User, Album, Photo, UserSession tables with indexes
+- [x] T016 DatabaseService implementation in `src/services/database-service.js` - SQLite WASM initialization, schema creation
+- [x] T017 Database schema creation in `src/services/database-service.js` - create User, Album, Photo, UserSession tables with indexes
 
 ### Data Models
-- [ ] T018 [P] User model in `src/models/user.js` - User entity with validation
-- [ ] T019 [P] Album model in `src/models/album.js` - Album entity with sort order logic
-- [ ] T020 [P] Photo model in `src/models/photo.js` - Photo entity with EXIF data handling
-- [ ] T021 [P] UserSession model in `src/models/user-session.js` - Session management
+- [x] T018 [P] User model in `src/models/user.js` - User entity with validation
+- [x] T019 [P] Album model in `src/models/album.js` - Album entity with sort order logic
+- [x] T020 [P] Photo model in `src/models/photo.js` - Photo entity with EXIF data handling
+- [x] T021 [P] UserSession model in `src/models/user-session.js` - Session management
 
 ### Core Services
 - [ ] T022 AuthenticationService implementation in `src/services/auth-service.js` - user registration, login, session management
