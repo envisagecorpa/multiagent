@@ -12,24 +12,43 @@ export class Router {
     this.isStarted = false;
     this.params = {};
     this.query = {};
-    
+
     // Bind event handlers
     this.handlePopState = this.handlePopState.bind(this);
     this.handleHashChange = this.handleHashChange.bind(this);
+
+    // Register routes if provided in options
+    if (options.routes) {
+      Object.entries(options.routes).forEach(([path, config]) => {
+        this.route(path, config);
+      });
+    }
   }
 
   /**
    * Add a route
    * @param {string} path - Route path with optional parameters (e.g., '/album/:id')
-   * @param {Function|Object} handler - Route handler function or component
+   * @param {Function|Object} handlerOrConfig - Route handler function, component, or configuration object
    * @param {Object} options - Route options
    */
-  route(path, handler, options = {}) {
+  route(path, handlerOrConfig, options = {}) {
+    // If handlerOrConfig is an object with a 'component' or 'handler' property, merge it into the route
+    let handler;
+    let routeConfig = {};
+
+    if (typeof handlerOrConfig === 'object' && (handlerOrConfig.component || handlerOrConfig.handler)) {
+      handler = handlerOrConfig.handler || handlerOrConfig.component;
+      routeConfig = { ...handlerOrConfig };
+    } else {
+      handler = handlerOrConfig;
+    }
+
     const route = {
       path: path,
       handler: handler,
       regex: this.pathToRegex(path),
       keys: this.extractKeys(path),
+      ...routeConfig,
       ...options
     };
 
@@ -50,20 +69,29 @@ export class Router {
    * Start the router
    */
   start() {
+    console.log('🎬 Router: start() called');
+    console.log('   isStarted:', this.isStarted);
+    console.log('   hash mode:', this.options.hash);
+    console.log('   current hash:', window.location.hash);
+
     if (this.isStarted) return this;
 
     this.isStarted = true;
 
     if (this.options.hash) {
+      console.log('📍 Router: Starting in hash mode');
       window.addEventListener('hashchange', this.handleHashChange);
       // Handle initial route
+      console.log('📍 Router: Calling handleHashChange for initial route');
       this.handleHashChange();
     } else {
+      console.log('📍 Router: Starting in history mode');
       window.addEventListener('popstate', this.handlePopState);
       // Handle initial route
       this.navigate(this.getCurrentPath(), { replace: true });
     }
 
+    console.log('✅ Router: Started successfully');
     return this;
   }
 
@@ -164,12 +192,16 @@ export class Router {
    * @param {string} path - Path to handle
    */
   async handleRoute(path) {
+    console.log('🔀 Router: Handling route:', path);
     const route = this.matchRoute(path);
-    
+
     if (!route) {
+      console.log('❌ Router: No route matched for:', path);
       this.handleNotFound(path);
       return;
     }
+
+    console.log('✅ Router: Route matched:', route.path, 'requiresAuth:', route.requiresAuth);
 
     // Parse parameters and query
     this.params = this.extractParams(route, path);
@@ -185,6 +217,17 @@ export class Router {
     };
 
     try {
+      // Check authentication requirement
+      if (route.requiresAuth && this.options.onAuthRequired) {
+        const isAuthenticated = this.options.checkAuth ? await this.options.checkAuth() : true;
+        console.log('🔐 Router: Auth check result:', isAuthenticated);
+        if (!isAuthenticated) {
+          console.log('🚫 Router: Auth required, calling onAuthRequired');
+          await this.options.onAuthRequired(context);
+          return;
+        }
+      }
+
       // Run middlewares
       for (const middleware of this.middlewares) {
         const result = await middleware(context);
@@ -194,6 +237,7 @@ export class Router {
       }
 
       // Execute route handler
+      console.log('▶️ Router: Executing handler for:', route.path);
       this.currentRoute = route;
       await this.executeHandler(route.handler, context);
 
@@ -222,16 +266,25 @@ export class Router {
 
   /**
    * Execute route handler
-   * @param {Function|Object} handler - Route handler
+   * @param {Function|Object|String} handler - Route handler
    * @param {Object} context - Route context
    */
   async executeHandler(handler, context) {
+    console.log('🎯 Router: executeHandler called with handler type:', typeof handler, handler);
     if (typeof handler === 'function') {
       await handler(context);
     } else if (handler && typeof handler.render === 'function') {
       // Assuming handler is a component class
       const component = new handler();
       await component.render(context);
+    } else if (typeof handler === 'string') {
+      // Handler is a string (component name) - call onRouteChange callback
+      console.log('📞 Router: Calling onRouteChange with component name:', handler);
+      if (this.options.onRouteChange) {
+        await this.options.onRouteChange(context.route, context.params);
+      } else {
+        console.error('⚠️ Router: onRouteChange callback not defined');
+      }
     } else {
       console.error('Invalid route handler:', handler);
     }

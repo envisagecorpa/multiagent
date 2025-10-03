@@ -1,7 +1,39 @@
 /**
- * SearchService - Handles search operations across photos, albums, and metadata
+ * SearchService - Comprehensive search engine for photo management application
+ * 
+ * PURPOSE:
+ * Provides full-text search capabilities across photos and albums with advanced filtering,
+ * relevance scoring, and real-time indexing for a photo management application.
+ * 
+ * KEY FEATURES:
+ * • Multi-Index Search System (main, tag, location, date indexes)
+ * • Intelligent relevance scoring with metadata weighting
+ * • Advanced filtering (type, tags, date range, file size, location, rating)
+ * • Multiple sort options (relevance, date, name, file size)
+ * • Real-time index management with incremental updates
+ * • Search suggestions & autocomplete functionality
+ * • Pagination support with configurable page sizes
+ * 
+ * ARCHITECTURE:
+ * - Main Search Index: Full-text search across photo/album metadata
+ * - Tag Index: Fast tag-based filtering and suggestions
+ * - Location Index: Geographic search capabilities  
+ * - Date Index: Time-based organization and filtering
+ * 
+ * USAGE:
+ * The service acts as a centralized search engine that other components can use
+ * to provide users with fast, relevant search results across their photo library
+ * with sophisticated filtering and ranking capabilities.
  */
 export default class SearchService {
+  /**
+   * Creates a new SearchService instance
+   * @param {Object} options - Configuration options
+   * @param {Object} options.photoService - Photo service instance for data access
+   * @param {Object} options.albumService - Album service instance for data access
+   * @param {Object} options.indexedDB - IndexedDB instance for persistence
+   * @param {number} options.searchTimeout - Search operation timeout in milliseconds
+   */
   constructor(options = {}) {
     this.options = {
       photoService: null,
@@ -20,6 +52,13 @@ export default class SearchService {
     this.initPromise = null;
   }
 
+  // ==================== INITIALIZATION METHODS ====================
+
+  /**
+   * Initializes the search service and builds all search indexes
+   * Uses lazy initialization with promise caching to prevent multiple builds
+   * @returns {Promise<void>}
+   */
   async init() {
     if (this.initialized) return;
     if (this.initPromise) return this.initPromise;
@@ -29,6 +68,12 @@ export default class SearchService {
     this.initialized = true;
   }
 
+  /**
+   * Builds all search indexes in parallel for optimal performance
+   * Creates main search index, tag index, location index, and date index
+   * @returns {Promise<void>}
+   * @throws {Error} If index building fails
+   */
   async buildSearchIndex() {
     try {
       console.log('Building search index...');
@@ -48,6 +93,14 @@ export default class SearchService {
     }
   }
 
+  // ==================== INDEX BUILDING METHODS ====================
+
+  /**
+   * Indexes all photos into the search system
+   * Creates searchable text from filename, title, description, location, and tags
+   * Populates tag, location, and date indexes for fast filtering
+   * @returns {Promise<void>}
+   */
   async indexPhotos() {
     if (!this.options.photoService) return;
 
@@ -93,8 +146,8 @@ export default class SearchService {
         }
 
         // Index date
-        if (photo.created_at) {
-          const date = new Date(photo.created_at);
+        if (photo.date_added) {
+          const date = new Date(photo.date_added);
           const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
           if (!this.dateIndex.has(dateKey)) {
             this.dateIndex.set(dateKey, []);
@@ -108,6 +161,12 @@ export default class SearchService {
     }
   }
 
+  /**
+   * Indexes all albums into the search system
+   * Creates searchable text from name, description, and tags
+   * Populates tag and date indexes for albums
+   * @returns {Promise<void>}
+   */
   async indexAlbums() {
     if (!this.options.albumService) return;
 
@@ -157,18 +216,37 @@ export default class SearchService {
     }
   }
 
+  /**
+   * Finalizes tag indexing and logs statistics
+   * Tags are indexed during photo/album indexing for efficiency
+   * @returns {Promise<void>}
+   */
   async indexTags() {
     // Tags are indexed during photo/album indexing
     // This method can be used for additional tag processing
     console.log(`Indexed ${this.tagIndex.size} unique tags`);
   }
 
+  /**
+   * Finalizes location indexing and logs statistics
+   * Locations are indexed during photo indexing for efficiency
+   * @returns {Promise<void>}
+   */
   async indexLocations() {
     // Locations are indexed during photo indexing
     // This method can be used for additional location processing
     console.log(`Indexed ${this.locationIndex.size} unique locations`);
   }
 
+  // ==================== WEIGHT CALCULATION METHODS ====================
+
+  /**
+   * Calculates relevance weight for a photo based on metadata richness and recency
+   * Higher weight for photos with title, description, tags, location
+   * Boosts recent photos (within 30/90 days)
+   * @param {Object} photo - Photo object to calculate weight for
+   * @returns {number} Weight score (higher = more relevant)
+   */
   calculatePhotoWeight(photo) {
     let weight = 1;
     
@@ -179,8 +257,8 @@ export default class SearchService {
     if (photo.location) weight += 0.2;
     
     // Boost recent photos
-    if (photo.created_at) {
-      const daysSinceCreation = (Date.now() - new Date(photo.created_at)) / (1000 * 60 * 60 * 24);
+    if (photo.date_added) {
+      const daysSinceCreation = (Date.now() - new Date(photo.date_added)) / (1000 * 60 * 60 * 24);
       if (daysSinceCreation < 30) weight += 0.3;
       else if (daysSinceCreation < 90) weight += 0.1;
     }
@@ -188,6 +266,13 @@ export default class SearchService {
     return weight;
   }
 
+  /**
+   * Calculates relevance weight for an album
+   * Albums get higher base weight than photos
+   * Boosts for description, tags, and photo count
+   * @param {Object} album - Album object to calculate weight for
+   * @returns {number} Weight score (higher = more relevant)
+   */
   calculateAlbumWeight(album) {
     let weight = 2; // Albums generally have higher base weight
     
@@ -198,6 +283,19 @@ export default class SearchService {
     return weight;
   }
 
+  // ==================== MAIN SEARCH METHOD ====================
+
+  /**
+   * Performs comprehensive search across photos and albums
+   * Supports text queries, filtering, sorting, and pagination
+   * @param {Object} params - Search parameters
+   * @param {string} params.query - Text query to search for
+   * @param {Object} params.filters - Filter criteria (type, tags, dateRange, etc.)
+   * @param {string} params.sortBy - Sort method ('relevance', 'date-desc', 'name-asc', etc.)
+   * @param {number} params.page - Page number for pagination (1-based)
+   * @param {number} params.limit - Number of results per page
+   * @returns {Promise<Object>} Search results with items, pagination info, and metadata
+   */
   async search(params) {
     await this.init();
 
@@ -253,6 +351,14 @@ export default class SearchService {
     }
   }
 
+  // ==================== SEARCH IMPLEMENTATION METHODS ====================
+
+  /**
+   * Performs full-text search across the main search index
+   * Uses term matching with relevance scoring based on exact matches and word boundaries
+   * @param {string} query - Search query text
+   * @returns {Promise<Array>} Array of matching items with relevance scores
+   */
   async performTextSearch(query) {
     const queryTerms = query.toLowerCase().split(/\s+/).filter(term => term.length > 1);
     const results = new Map();
@@ -281,6 +387,13 @@ export default class SearchService {
     return Array.from(results.values());
   }
 
+  /**
+   * Applies various filters to search results
+   * Supports filtering by type, tags, date range, file size, location, and rating
+   * @param {Array} results - Initial search results to filter
+   * @param {Object} filters - Filter criteria object
+   * @returns {Array} Filtered results array
+   */
   applyFilters(results, filters) {
     let filteredResults = [...results];
 
@@ -310,17 +423,19 @@ export default class SearchService {
     // Date range filter
     if (filters.dateRange) {
       const { start, end } = filters.dateRange;
-      
+
       filteredResults = filteredResults.filter(item => {
-        if (!item.data.created_at) return false;
-        
-        const itemDate = new Date(item.data.created_at);
+        // Use appropriate date field based on item type
+        const dateField = item.type === 'photo' ? item.data.date_added : item.data.created_at;
+        if (!dateField) return false;
+
+        const itemDate = new Date(dateField);
         const startDate = start ? new Date(start) : null;
         const endDate = end ? new Date(end) : null;
 
         if (startDate && itemDate < startDate) return false;
         if (endDate && itemDate > endDate) return false;
-        
+
         return true;
       });
     }
@@ -369,6 +484,13 @@ export default class SearchService {
     return filteredResults;
   }
 
+  /**
+   * Calculates and enhances relevance scores for search results
+   * Boosts items with title matches and exact phrase matches
+   * @param {Array} results - Search results to score
+   * @param {string} query - Original search query
+   * @returns {Array} Results with updated relevance scores
+   */
   calculateRelevanceScores(results, query) {
     const queryTerms = query.toLowerCase().split(/\s+/);
     
@@ -394,6 +516,13 @@ export default class SearchService {
     });
   }
 
+  /**
+   * Sorts search results by specified criteria
+   * Supports relevance, date (asc/desc), name (asc/desc), and size (asc/desc) sorting
+   * @param {Array} results - Results to sort
+   * @param {string} sortBy - Sort method identifier
+   * @returns {Array} Sorted results array
+   */
   sortResults(results, sortBy) {
     switch (sortBy) {
       case 'relevance':
@@ -401,15 +530,15 @@ export default class SearchService {
       
       case 'date-desc':
         return results.sort((a, b) => {
-          const dateA = new Date(a.data.created_at || 0);
-          const dateB = new Date(b.data.created_at || 0);
+          const dateA = new Date(a.type === 'photo' ? (a.data.date_added || 0) : (a.data.created_at || 0));
+          const dateB = new Date(b.type === 'photo' ? (b.data.date_added || 0) : (b.data.created_at || 0));
           return dateB - dateA;
         });
-      
+
       case 'date-asc':
         return results.sort((a, b) => {
-          const dateA = new Date(a.data.created_at || 0);
-          const dateB = new Date(b.data.created_at || 0);
+          const dateA = new Date(a.type === 'photo' ? (a.data.date_added || 0) : (a.data.created_at || 0));
+          const dateB = new Date(b.type === 'photo' ? (b.data.date_added || 0) : (b.data.created_at || 0));
           return dateA - dateB;
         });
       
@@ -438,6 +567,12 @@ export default class SearchService {
     }
   }
 
+  /**
+   * Formats raw search results into standardized result objects
+   * Provides consistent structure for photos and albums with relevant metadata
+   * @param {Object} item - Raw search result item
+   * @returns {Object} Formatted search result with standardized fields
+   */
   formatSearchResult(item) {
     const baseResult = {
       id: `${item.type}-${item.id}`,
@@ -452,7 +587,7 @@ export default class SearchService {
         title: item.data.filename || item.data.title || 'Untitled Photo',
         description: item.data.description || '',
         thumbnail: item.data.thumbnail_url,
-        date: item.data.created_at,
+        date: item.data.date_added,
         size: item.data.file_size,
         dimensions: {
           width: item.data.width,
@@ -477,7 +612,15 @@ export default class SearchService {
     return baseResult;
   }
 
-  // Quick search methods for suggestions
+  // ==================== SUGGESTION AND AUTOCOMPLETE METHODS ====================
+
+  /**
+   * Generates search suggestions for autocomplete functionality
+   * Provides tag, location, and generic search suggestions based on partial query
+   * @param {string} query - Partial search query (minimum 2 characters)
+   * @param {number} limit - Maximum number of suggestions to return
+   * @returns {Promise<Array>} Array of suggestion objects with text, type, and metadata
+   */
   async getSearchSuggestions(query, limit = 8) {
     await this.init();
 
@@ -534,6 +677,11 @@ export default class SearchService {
     return suggestions.slice(0, limit);
   }
 
+  /**
+   * Retrieves all indexed tags with usage counts
+   * Useful for tag clouds, filters, and suggestion systems
+   * @returns {Promise<Array>} Array of tag objects with id, name, and count
+   */
   async getTags() {
     await this.init();
     return Array.from(this.tagIndex.keys()).map(tag => ({
@@ -543,6 +691,11 @@ export default class SearchService {
     }));
   }
 
+  /**
+   * Retrieves all indexed locations with usage counts
+   * Useful for location filters and suggestion systems
+   * @returns {Promise<Array>} Array of location objects with id, name, and count
+   */
   async getLocations() {
     await this.init();
     return Array.from(this.locationIndex.keys()).map(location => ({
@@ -552,7 +705,14 @@ export default class SearchService {
     }));
   }
 
-  // Update index when data changes
+  // ==================== INDEX MAINTENANCE METHODS ====================
+
+  /**
+   * Adds a single photo to all relevant indexes in real-time
+   * Updates main search index, tag index, and location index
+   * @param {Object} photo - Photo object to add to indexes
+   * @returns {Promise<void>}
+   */
   async addPhoto(photo) {
     // Add single photo to index
     const searchableText = [
@@ -592,6 +752,12 @@ export default class SearchService {
     }
   }
 
+  /**
+   * Removes a photo from all indexes in real-time
+   * Cleans up main search index, tag index, and location index
+   * @param {string|number} photoId - ID of photo to remove
+   * @returns {Promise<void>}
+   */
   async removePhoto(photoId) {
     const key = `photo-${photoId}`;
     const item = this.searchIndex.get(key);
@@ -634,6 +800,11 @@ export default class SearchService {
     }
   }
 
+  /**
+   * Completely rebuilds all search indexes from scratch
+   * Useful for data consistency recovery or major schema changes
+   * @returns {Promise<void>}
+   */
   async rebuildIndex() {
     // Clear existing indexes
     this.searchIndex.clear();

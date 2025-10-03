@@ -26,11 +26,26 @@ export class NotificationManager extends Component {
    * @returns {number} Notification ID
    */
   show(message, type = 'info', duration = 5000) {
+    console.log('📢 NotificationManager: show() called')
+    console.log('   message:', message)
+    console.log('   type:', type)
+    console.log('   duration:', duration)
+    console.log('   this.element:', this.element)
+
+    if (!this.element) {
+      console.error('❌ NotificationManager: element is null! Manager not mounted to DOM.')
+      console.error('   Call notifications.mount(container) before using it.')
+      return -1
+    }
+
     const id = this.nextId++
     const notification = this.createNotification(id, message, type)
-    
+
+    console.log('   Created notification:', notification)
+
     this.notifications.set(id, notification)
     this.element.appendChild(notification.element)
+    console.log('✅ NotificationManager: Notification appended to DOM')
 
     // Auto-dismiss after duration
     if (duration > 0) {
@@ -48,6 +63,7 @@ export class NotificationManager extends Component {
    * @param {number} duration - Auto-dismiss duration
    */
   success(message, duration = 5000) {
+    console.log('✅ NotificationManager: success() called with:', message)
     return this.show(message, 'success', duration)
   }
 
@@ -57,6 +73,7 @@ export class NotificationManager extends Component {
    * @param {number} duration - Auto-dismiss duration
    */
   error(message, duration = 8000) {
+    console.log('🚨 NotificationManager: error() called with:', message)
     return this.show(message, 'error', duration)
   }
 
@@ -152,6 +169,12 @@ export class NotificationManager extends Component {
     content.appendChild(text)
     element.appendChild(content)
     element.appendChild(closeBtn)
+
+    // Animate in after a brief delay
+    setTimeout(() => {
+      element.style.opacity = '1'
+      element.style.transform = 'translateX(0)'
+    }, 10)
 
     return { element, id, type, message }
   }

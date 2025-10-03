@@ -1,15 +1,17 @@
 import { Photo } from '../models/photo.js'
 import { DatabaseService } from './database-service.js'
+import { EventEmitter } from '../utils/EventEmitter.js'
 
 /**
  * Photo Service
  * Handles photo upload, thumbnail generation, EXIF extraction, and album association
  */
-export class PhotoService {
+export class PhotoService extends EventEmitter {
   constructor(databaseService = null) {
-    this.db = databaseService
-    this.databaseService = null
-    
+    super()
+    // If a DatabaseService instance is provided, use its db; otherwise initialize later in initialize()
+    this.databaseService = databaseService
+
     // File upload constraints
     this.MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
     this.SUPPORTED_FORMATS = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
@@ -18,6 +20,9 @@ export class PhotoService {
       medium: { width: 300, height: 300 },
       large: { width: 600, height: 600 }
     }
+
+    this.baseURL = process.env.API_BASE_URL || 'http://localhost:3000/api';
+    this.cache = new Map();
   }
 
   /**
@@ -25,10 +30,17 @@ export class PhotoService {
    * Creates database service if not provided
    */
   async initialize() {
-    if (!this.db) {
+    // Use the shared database service provided in constructor
+    if (this.databaseService && this.databaseService.db) {
+      this.db = this.databaseService.db
+    } else if (!this.databaseService) {
+      // Only create new DatabaseService if none was provided
+      console.log('photo-service.js: No database service provided, creating new one');
       this.databaseService = new DatabaseService()
       await this.databaseService.initialize()
       this.db = this.databaseService.db
+    } else {
+      throw new Error('DatabaseService provided but not initialized')
     }
   }
 
@@ -452,123 +464,73 @@ export class PhotoService {
   }
 
   /**
+   * Upload photo to server
+   * @param {File} file - Photo file
+   * @param {Object} metadata - Metadata for the photo
+   * @returns {Promise<Object>} Uploaded photo object
+   */
+  async uploadPhoto(file, metadata = {}) {
+    const formData = new FormData();
+    formData.append('photo', file);
+    formData.append('metadata', JSON.stringify(metadata));
+
+    const response = await fetch(`${this.baseURL}/photos`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error('Photo upload failed');
+    }
+
+    const photo = await response.json();
+    return photo;
+  }
+
+  /**
+   * Get photos for an album
+   * @param {number} albumId - Album ID
+   * @param {number} page - Page number
+   * @param {number} limit - Number of photos per page
+   * @returns {Promise<Array>} Array of photos in API format
+   */
+  async getPhotos(albumId = null, page = 1, limit = 20) {
+    const params = new URLSearchParams({ page, limit });
+    if (albumId) params.append('albumId', albumId);
+
+    const response = await fetch(`${this.baseURL}/photos?${params}`, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch photos');
+    }
+
+    return response.json();
+  }
+
+  /**
    * Get a single photo by ID
    * @param {string} photoId - Photo ID
    * @returns {Promise<Object|null>} Photo object or null if not found
    */
   async getPhoto(photoId) {
-    try {
-      const stmt = this.db.prepare('SELECT * FROM photos WHERE id = ? AND deleted_at IS NULL')
-      const result = stmt.get(photoId)
-      
-      return result ? this._formatPhotoOutput(Photo.fromDatabase(result)) : null
-    } catch (error) {
-      console.error('Error getting photo:', error)
-      throw new Error('Failed to get photo')
+    if (this.cache.has(photoId)) {
+      return this.cache.get(photoId);
     }
-  }
 
-  /**
-   * Get photos in an album (alias for getAlbumPhotos for consistency)
-   * @param {string} albumId - Album ID
-   * @returns {Promise<Array>} Array of photo objects
-   */
-  async getPhotosInAlbum(albumId) {
-    return this.getAlbumPhotos(albumId)
-  }
+    const response = await fetch(`${this.baseURL}/photos/${photoId}`, {
+      headers: this.getAuthHeaders()
+    });
 
-  /**
-   * Add a single photo to an album
-   * @param {string} albumId - Album ID
-   * @param {Object} photoData - Photo data object
-   * @returns {Promise<Object>} Created photo object
-   */
-  async addPhotoToAlbum(albumId, photoData) {
-    try {
-      // Create photo instance
-      const photo = new Photo({
-        albumId: albumId,
-        filename: photoData.filename,
-        originalName: photoData.originalName || photoData.filename,
-        mimeType: photoData.mimeType,
-        fileSize: photoData.fileSize,
-        url: photoData.url,
-        thumbnailUrl: photoData.thumbnailUrl,
-        title: photoData.title || null,
-        description: photoData.description || null,
-        tags: photoData.tags || null,
-        displayOrder: photoData.displayOrder || 0
-      })
-
-      // Save to database
-      const stmt = this.db.prepare(`
-        INSERT INTO photos (
-          id, album_id, filename, original_name, mime_type, file_size,
-          url, thumbnail_url, title, description, tags, display_order,
-          created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `)
-
-      stmt.run(
-        photo.id,
-        photo.albumId,
-        photo.filename,
-        photo.originalName,
-        photo.mimeType,
-        photo.fileSize,
-        photo.url,
-        photo.thumbnailUrl,
-        photo.title,
-        photo.description,
-        photo.tags,
-        photo.displayOrder,
-        photo.createdAt,
-        photo.updatedAt
-      )
-
-      return this._formatPhotoOutput(photo)
-    } catch (error) {
-      console.error('Error adding photo to album:', error)
-      throw new Error('Failed to add photo to album')
+    if (!response.ok) {
+      throw new Error('Failed to fetch photo');
     }
-  }
 
-  /**
-   * Update photo order in album
-   * @param {string} albumId - Album ID
-   * @param {Array} photoOrders - Array of {id, displayOrder} objects
-   * @returns {Promise<void>}
-   */
-  async updatePhotoOrder(albumId, photoOrders) {
-    try {
-      const stmt = this.db.prepare('UPDATE photos SET display_order = ?, updated_at = ? WHERE id = ? AND album_id = ?')
-      const now = new Date().toISOString()
-
-      this.db.transaction(() => {
-        photoOrders.forEach(({ id, displayOrder }) => {
-          stmt.run(displayOrder, now, id, albumId)
-        })
-      })()
-
-    } catch (error) {
-      console.error('Error updating photo order:', error)
-      throw new Error('Failed to update photo order')
-    }
-  }
-
-  /**
-   * Delete a photo
-   * @param {string} photoId - Photo ID
-   * @returns {Promise<void>}
-   */
-  async deletePhoto(photoId) {
-    try {
-      const stmt = this.db.prepare('UPDATE photos SET deleted_at = ? WHERE id = ?')
-      stmt.run(new Date().toISOString(), photoId)
-    } catch (error) {
-      console.error('Error deleting photo:', error)
-      throw new Error('Failed to delete photo')
-    }
+    const photo = await response.json();
+    this.cache.set(photoId, photo);
+    return photo;
   }
 
   /**
@@ -578,38 +540,41 @@ export class PhotoService {
    * @returns {Promise<Object>} Updated photo object
    */
   async updatePhoto(photoId, updates) {
-    try {
-      const allowedFields = ['title', 'description', 'tags']
-      const updateFields = []
-      const values = []
+    const response = await fetch(`${this.baseURL}/photos/${photoId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders()
+      },
+      body: JSON.stringify(updates)
+    });
 
-      Object.keys(updates).forEach(key => {
-        if (allowedFields.includes(key)) {
-          updateFields.push(`${key} = ?`)
-          values.push(updates[key])
-        }
-      })
-
-      if (updateFields.length === 0) {
-        throw new Error('No valid fields to update')
-      }
-
-      values.push(new Date().toISOString()) // updated_at
-      values.push(photoId) // WHERE id = ?
-
-      const stmt = this.db.prepare(`
-        UPDATE photos 
-        SET ${updateFields.join(', ')}, updated_at = ?
-        WHERE id = ? AND deleted_at IS NULL
-      `)
-
-      stmt.run(...values)
-
-      return this.getPhoto(photoId)
-    } catch (error) {
-      console.error('Error updating photo:', error)
-      throw new Error('Failed to update photo')
+    if (!response.ok) {
+      throw new Error('Failed to update photo');
     }
+
+    const photo = await response.json();
+    this.cache.set(photoId, photo);
+    return photo;
+  }
+
+  /**
+   * Delete a photo
+   * @param {string} photoId - Photo ID
+   * @returns {Promise<void>}
+   */
+  async deletePhoto(photoId) {
+    const response = await fetch(`${this.baseURL}/photos/${photoId}`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to delete photo');
+    }
+
+    this.cache.delete(photoId);
+    return true;
   }
 
   /**
@@ -620,12 +585,11 @@ export class PhotoService {
   async getRandomPhotos(count = 20) {
     try {
       const stmt = this.db.prepare(`
-        SELECT * FROM photos 
-        WHERE deleted_at IS NULL 
-        ORDER BY RANDOM() 
+        SELECT * FROM photos
+        ORDER BY RANDOM()
         LIMIT ?
       `)
-      
+
       const results = stmt.all(count)
       return results.map(result => this._formatPhotoOutput(Photo.fromDatabase(result)))
     } catch (error) {
@@ -638,35 +602,32 @@ export class PhotoService {
    * Search photos by query
    * @param {string} query - Search query
    * @param {Object} options - Search options
-   * @returns {Promise<Array>} Array of matching photo objects
+   * @returns {Promise<Array} Array of matching photo objects
    */
   async searchPhotos(query, options = {}) {
     try {
       const { limit = 50, albumId = null } = options
       let sql = `
-        SELECT * FROM photos 
-        WHERE deleted_at IS NULL 
-        AND (
-          title LIKE ? OR 
-          description LIKE ? OR 
+        SELECT * FROM photos
+        WHERE (
           filename LIKE ? OR
-          tags LIKE ?
+          original_name LIKE ?
         )
       `
-      
-      const params = [`%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`]
+
+      const params = [`%${query}%`, `%${query}%`]
 
       if (albumId) {
         sql += ' AND album_id = ?'
         params.push(albumId)
       }
 
-      sql += ' ORDER BY created_at DESC LIMIT ?'
+      sql += ' ORDER BY date_added DESC LIMIT ?'
       params.push(limit)
 
       const stmt = this.db.prepare(sql)
       const results = stmt.all(...params)
-      
+
       return results.map(result => this._formatPhotoOutput(Photo.fromDatabase(result)))
     } catch (error) {
       console.error('Error searching photos:', error)
@@ -682,20 +643,20 @@ export class PhotoService {
    */
   async getRecentPhotos(count = 20, albumId = null) {
     try {
-      let sql = 'SELECT * FROM photos WHERE deleted_at IS NULL'
+      let sql = 'SELECT * FROM photos'
       const params = []
 
       if (albumId) {
-        sql += ' AND album_id = ?'
+        sql += ' WHERE album_id = ?'
         params.push(albumId)
       }
 
-      sql += ' ORDER BY created_at DESC LIMIT ?'
+      sql += ' ORDER BY date_added DESC LIMIT ?'
       params.push(count)
 
       const stmt = this.db.prepare(sql)
       const results = stmt.all(...params)
-      
+
       return results.map(result => this._formatPhotoOutput(Photo.fromDatabase(result)))
     } catch (error) {
       console.error('Error getting recent photos:', error)
@@ -708,6 +669,46 @@ export class PhotoService {
    * @param {File} file - Image file
    * @returns {Promise<Object>} Dimensions object with width and height
    */
+  /**
+   * Get all photos across all albums
+   * @returns {Promise<Array>} Array of all photos
+   */
+  async getAllPhotos() {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const result = this.db.exec(`
+        SELECT
+          p.*,
+          a.name as album_name,
+          a.user_id
+        FROM photos p
+        JOIN albums a ON p.album_id = a.id
+        ORDER BY p.date_added DESC
+      `);
+
+      if (!result || result.length === 0 || !result[0]) {
+        return [];
+      }
+
+      const columns = result[0].columns;
+      const values = result[0].values || [];
+
+      return values.map(row => {
+        const photo = {};
+        columns.forEach((col, index) => {
+          photo[col] = row[index];
+        });
+        return photo;
+      });
+    } catch (error) {
+      console.error('Error getting all photos:', error);
+      throw error;
+    }
+  }
+
   async _getImageDimensions(file) {
     // Check if we're in a test environment without DOM/URL support
     if (typeof document === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL) {
@@ -731,5 +732,10 @@ export class PhotoService {
       img.onerror = () => reject(new Error('Failed to load image for dimensions'))
       img.src = URL.createObjectURL(file)
     })
+  }
+
+  getAuthHeaders() {
+    const token = localStorage.getItem('auth_token');
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
   }
 }

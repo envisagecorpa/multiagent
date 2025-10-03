@@ -2,16 +2,23 @@ import bcrypt from 'bcryptjs'
 import { User } from '../models/user.js'
 import { UserSession } from '../models/user-session.js'
 import { DatabaseService } from './database-service.js'
+import { EventEmitter } from '../utils/EventEmitter.js'
 
 /**
  * Authentication Service
  * Handles user registration, login, session management
  */
-export class AuthenticationService {
+export class AuthenticationService extends EventEmitter {
   constructor(databaseService = null) {
-    this.db = databaseService
-    this.databaseService = null
-    this.saltRounds = 12
+    super()
+
+    // If a DatabaseService instance is provided, use its db; otherwise initialize later in initialize()
+    this.databaseService = databaseService
+
+    this.saltRounds = 12;
+    this.currentUser = null;
+    this.token = localStorage.getItem('auth_token');
+    this.baseURL = process.env.API_BASE_URL || 'http://localhost:3000/api';
   }
 
   /**
@@ -19,10 +26,25 @@ export class AuthenticationService {
    * Creates database service if not provided
    */
   async initialize() {
-    if (!this.db) {
+    // Use the shared database service provided in constructor
+    if (this.databaseService && this.databaseService.db) {
+      this.db = this.databaseService.db
+    } else if (!this.databaseService) {
+      // Only create new DatabaseService if none was provided
+      console.log('auth-service.js: No database service provided, creating new one');
       this.databaseService = new DatabaseService()
       await this.databaseService.initialize()
       this.db = this.databaseService.db
+    } else {
+      throw new Error('DatabaseService provided but not initialized')
+    }
+
+    if (this.token) {
+      try {
+        await this.validateToken();
+      } catch (error) {
+        this.clearToken();
+      }
     }
   }
 
@@ -194,14 +216,17 @@ export class AuthenticationService {
       // Create new session
       const session = await this.createSession(user.id)
 
+      this.setToken(session.session_token);
+      this.currentUser = {
+        id: user.id,
+        email: user.email,
+        displayName: user.display_name,
+        sessionToken: session.session_token
+      };
+
       return {
         success: true,
-        user: {
-          id: user.id,
-          email: user.email,
-          displayName: user.display_name,
-          sessionToken: session.session_token
-        }
+        user: this.currentUser
       }
 
     } catch (error) {
@@ -318,6 +343,9 @@ export class AuthenticationService {
       stmt.bind([token])
       stmt.step()
       stmt.finalize()
+
+      this.clearToken();
+      this.currentUser = null;
 
       return true
     } catch (error) {
@@ -478,5 +506,23 @@ export class AuthenticationService {
       console.error('Session cleanup error:', error)
       return 0
     }
+  }
+
+  setToken(token) {
+    this.token = token;
+    localStorage.setItem('auth_token', token);
+  }
+
+  clearToken() {
+    this.token = null;
+    localStorage.removeItem('auth_token');
+  }
+
+  async validateToken() {
+    return this.getCurrentUser();
+  }
+
+  getAuthHeaders() {
+    return this.token ? { 'Authorization': `Bearer ${this.token}` } : {};
   }
 }

@@ -6,72 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Photo Album App</title>
     <meta name="description" content="Organize and manage your photo albums with ease" />
-    
+
     <!-- Preload critical fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <div id="app">
-      <!-- Loading screen -->
-      <div id="loading-screen" class="loading-screen" aria-live="polite">
-        <div class="loading-spinner" aria-hidden="true"></div>
-        <p>Loading Photo Album App...</p>
-      </div>
-
-      <!-- Main application content -->
-      <main id="main-content" class="main-content" role="main" style="display: none;">
-        <!-- Authentication views -->
-        <section id="auth-section" class="auth-section" style="display: none;">
-          <div class="auth-container">
-            <header class="auth-header">
-              <h1 class="app-title">Photo Album</h1>
-              <p class="app-description">Organize and manage your photo memories</p>
-            </header>
-            
-            <div id="auth-forms" class="auth-forms">
-              <!-- Login and register forms will be injected here -->
-            </div>
-          </div>
-        </section>
-
-        <!-- Dashboard view -->
-        <section id="dashboard-section" class="dashboard-section" style="display: none;">
-          <!-- Dashboard component will be injected here -->
-        </section>
-
-        <!-- Photo view -->
-        <section id="photo-section" class="photo-section" style="display: none;">
-          <header class="photo-header">
-            <button id="back-to-albums-btn" class="btn btn-link" aria-label="Back to albums">
-              <span class="btn-icon" aria-hidden="true">←</span>
-              Back to Albums
-            </button>
-            <h2 id="album-title" class="album-title"></h2>
-            <div class="photo-actions">
-              <button id="upload-photos-btn" class="btn btn-primary" aria-label="Upload photos">
-                <span class="btn-icon" aria-hidden="true">📷</span>
-                Upload Photos
-              </button>
-            </div>
-          </header>
-          
-          <div id="photos-grid" class="photos-grid">
-            <!-- Photos grid will be injected here -->
-          </div>
-        </section>
-      </main>
-
-      <!-- Modal container -->
-      <div id="modal-container" class="modal-container" style="display: none;">
-        <!-- Modals will be injected here -->
-      </div>
-
-      <!-- Notifications container -->
-      <div id="notifications" class="notifications" aria-live="polite"></div>
-    </div>
-
+    This is a Photo Album App
+    <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

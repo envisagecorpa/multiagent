@@ -1,14 +1,16 @@
 import { Album } from '../models/album.js'
 import { DatabaseService } from './database-service.js'
+import { EventEmitter } from '../utils/EventEmitter.js'
 
 /**
  * Album Service
  * Handles album CRUD operations, ordering, and validation
  */
-export class AlbumService {
+export class AlbumService extends EventEmitter {
   constructor(databaseService = null) {
-    this.db = databaseService
-    this.databaseService = null
+    super()
+    // If a DatabaseService instance is provided, use its db; otherwise initialize later in initialize()
+    this.databaseService = databaseService
   }
 
   /**
@@ -16,10 +18,17 @@ export class AlbumService {
    * Creates database service if not provided
    */
   async initialize() {
-    if (!this.db) {
+    // Use the shared database service provided in constructor
+    if (this.databaseService && this.databaseService.db) {
+      this.db = this.databaseService.db
+    } else if (!this.databaseService) {
+      // Only create new DatabaseService if none was provided
+      console.log('album-service.js: No database service provided, creating new one');
       this.databaseService = new DatabaseService()
       await this.databaseService.initialize()
       this.db = this.databaseService.db
+    } else {
+      throw new Error('DatabaseService provided but not initialized')
     }
   }
 
@@ -418,6 +427,45 @@ export class AlbumService {
     } catch (error) {
       console.error('Update photo count error:', error)
       throw error
+    }
+  }
+
+  /**
+   * Get all albums across all users (for search indexing)
+   * @returns {Promise<Array>} Array of all albums
+   */
+  async getAllAlbums() {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const result = this.db.exec(`
+        SELECT
+          *,
+          (SELECT COUNT(*) FROM photos WHERE album_id = albums.id) as photo_count
+        FROM albums
+        ORDER BY created_at DESC
+      `);
+
+      // If no albums exist, return empty array
+      if (!result || result.length === 0 || !result[0] || !result[0].columns) {
+        return [];
+      }
+
+      const columns = result[0].columns;
+      const values = result[0].values || [];
+
+      return values.map(row => {
+        const album = {};
+        columns.forEach((col, index) => {
+          album[col] = row[index];
+        });
+        return album;
+      });
+    } catch (error) {
+      console.error('Error getting all albums:', error);
+      throw error;
     }
   }
 }

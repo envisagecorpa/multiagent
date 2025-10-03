@@ -52,10 +52,16 @@ export class PWAManager {
       return false;
     }
 
+    // TODO: Create a service worker file before enabling registration
+    // For now, skip registration to avoid MIME type errors
+    console.log('Service Worker registration disabled (no sw.js file)');
+    return false;
+
+    /* Uncomment when sw.js is created
     try {
       const registration = await navigator.serviceWorker.register(this.options.swPath);
       this.serviceWorker = registration;
-      
+
       console.log('Service Worker registered:', registration);
 
       // Handle updates
@@ -71,6 +77,7 @@ export class PWAManager {
       console.error('Service Worker registration failed:', error);
       return false;
     }
+    */
   }
 
   handleServiceWorkerUpdate(registration) {

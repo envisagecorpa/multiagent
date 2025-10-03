@@ -2,6 +2,7 @@ import { Component } from './components/common/Component.js';
 import { AuthenticationService } from './services/auth-service.js';
 import { PhotoService } from './services/photo-service.js';
 import { AlbumService } from './services/album-service.js';
+import { DatabaseService } from './services/database-service.js';
 import SearchService from './services/SearchService.js';
 import { AuthComponent } from './components/auth/index.js';
 import { Dashboard } from './components/dashboard/index.js';
@@ -19,6 +20,7 @@ import { performanceMonitor, lazyLoader } from './utils/PerformanceUtils.js';
 import { globalCache, imageCache } from './utils/CacheManager.js';
 import { accessibilityManager } from './utils/AccessibilityManager.js';
 import { pwaManager } from './utils/PWAManager.js';
+import { notifications } from './components/common/NotificationManager.js';
 
 /**
  * Main Application Class - Integrates all components and services
@@ -26,7 +28,10 @@ import { pwaManager } from './utils/PWAManager.js';
 export default class App extends Component {
   constructor(container) {
     super(container);
-    
+
+    // Store container reference for app-specific usage
+    this.container = container;
+
     this.state = {
       isInitialized: false,
       currentUser: null,
@@ -36,11 +41,15 @@ export default class App extends Component {
       theme: 'light'
     };
 
-    // Initialize services
+    // Initialize shared database service first
+    this.databaseService = new DatabaseService();
+
+    // Initialize services with shared database
     this.services = {
-      auth: new AuthenticationService(),
-      photo: new PhotoService(),
-      album: new AlbumService()
+      database: this.databaseService,
+      auth: new AuthenticationService(this.databaseService),
+      photo: new PhotoService(this.databaseService),
+      album: new AlbumService(this.databaseService)
     };
     
     // Initialize components
@@ -69,53 +78,70 @@ export default class App extends Component {
       routeTransitions: 0
     };
     
-    // Bind methods
-    this.bindMethods();    this.init();
+    // Initialize the application
+    this.init();
   }
 
   async init() {
     try {
+      console.log('🚀 Starting app initialization...');
       this.state.isLoading = true;
       this.updateState();
       
       // Start performance monitoring
       this.performanceMonitor.startTimer('app-initialization');
+      console.log('✅ Performance monitoring started');
       
       // Initialize error handling
-      this.setupErrorHandling();
+      this.setupGlobalErrorHandling();
+      console.log('✅ Error handling initialized');
       
       // Initialize performance and accessibility
       this.initializePerformanceFeatures();
+      console.log('✅ Performance features initialized');
       
-      // Initialize authentication
-      await this.initializeAuth();
+      // Initialize services (auth, photo, album)
+      console.log('⏳ Initializing services...');
+      await this.initializeServices();
+      console.log('✅ Services initialized');
       
       // Initialize router and navigation
+      console.log('⏳ Initializing router...');
       this.initializeRouter();
+      console.log('✅ Router initialized');
+      
+      console.log('⏳ Initializing navigation...');
       this.initializeNavigation();
+      console.log('✅ Navigation initialized');
       
       // Initialize modal system
+      console.log('⏳ Initializing modals...');
       this.initializeModals();
+      console.log('✅ Modals initialized');
       
       // Setup event listeners
-      this.setupEventListeners();
-      
-      // Setup theme management
-      this.setupThemeManagement();
+      console.log('⏳ Setting up event listeners...');
+      this.setupGlobalEventListeners();
+      console.log('✅ Event listeners set up');
       
       // Initialize components based on auth state
+      console.log('⏳ Initializing components...');
       await this.initializeComponents();
+      console.log('✅ Components initialized');
       
       // Complete performance monitoring
       const initTime = this.performanceMonitor.endTimer('app-initialization');
       this.performanceMetrics.initializationTime = initTime;
       
+      // ### Temporarily disable continuous monitoring to save resources
+      this.performanceMonitor.destroy();
+
       // Mark as initialized
       this.state.isInitialized = true;
       this.state.isLoading = false;
       this.updateState();
       
-      console.log(`📱 App initialized successfully in ${Math.round(initTime)}ms`);
+      console.log(`✅ App initialized successfully in ${Math.round(initTime)}ms`);
       
       // Announce to screen readers
       this.accessibilityManager.announce('Photo album application loaded');
@@ -124,6 +150,51 @@ export default class App extends Component {
       console.error('❌ App initialization failed:', error);
       this.handleError(error, 'App initialization failed');
     }
+  }
+
+  /**
+   * Update the application state and trigger re-render if needed
+   */
+  updateState() {
+    // If the component is mounted and rendered, update the content
+    if (this.contentContainer) {
+      this.contentContainer.innerHTML = this.renderContent();
+    }
+  }
+
+  /**
+   * Handle application errors
+   */
+  handleError(error, context = '') {
+    console.error(`App Error (${context}):`, error);
+    
+    // Set error state
+    this.state.error = error.message || 'An unexpected error occurred';
+    this.state.isLoading = false;
+    this.updateState();
+    
+    // Show user-friendly notification
+    this.showErrorNotification(context || 'An error occurred');
+  }
+
+  /**
+   * Initialize main application components
+   */
+  async initializeComponents() {
+    console.log('🎨 App: Initializing components...');
+
+    // Render the main app structure
+    console.log('🎨 App: Calling render()');
+    this.render();
+    console.log('🎨 App: contentContainer set to:', this.contentContainer);
+
+    // NOW start the router after contentContainer is ready
+    if (this.components.router) {
+      console.log('🚀 App: Starting router now that contentContainer is ready');
+      this.components.router.start();
+    }
+
+    console.log('✅ App: Components initialized');
   }
 
   initializePerformanceFeatures() {
@@ -153,22 +224,45 @@ export default class App extends Component {
   async initializeServices() {
     console.log('Initializing services...');
     
-    // Initialize core services
-    await Promise.all([
-      this.services.auth.init(),
-      this.services.photo.init(),
-      this.services.album.init()
-    ]);
+    try {
+      const timeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Service initialization timeout')), 10000)
+      );
+      
+      // Initialize database service first
+      console.log('App.js: Initializing database service...');
+      await this.databaseService.initialize();
+      console.log('✅ App.js: Database service initialized');
 
-    // Initialize search service with other services
-    this.services.search = new SearchService({
-      photoService: this.services.photo,
-      albumService: this.services.album
-    });
-    
-    await this.services.search.init();
-    
-    console.log('Services initialized successfully');
+      if (this.databaseService.db == null) {
+        console.log('App.js: databaseService.db not initialized');
+      }
+
+      // Initialize other services with the shared database
+      const serviceInit = Promise.all([
+        this.services.auth.initialize(),
+        this.services.photo.initialize(),
+        this.services.album.initialize()
+      ]);
+      
+      await Promise.race([serviceInit, timeout]);
+      console.log('✅ Core services initialized');
+
+      // Initialize search service with other services and database
+      this.services.search = new SearchService({
+        photoService: this.services.photo,
+        albumService: this.services.album,
+        database: this.databaseService
+      });
+      
+      await this.services.search.init();
+      console.log('✅ Search service initialized');
+      
+      console.log('✅ All services initialized successfully');
+    } catch (error) {
+      console.error('❌ Service initialization failed:', error);
+      throw error;
+    }
   }
 
   initializeRouter() {
@@ -185,11 +279,12 @@ export default class App extends Component {
         '/settings': { component: 'settings', requiresAuth: true }
       },
       onRouteChange: this.handleRouteChange.bind(this),
-      onAuthRequired: this.handleAuthRequired.bind(this)
+      onAuthRequired: this.handleAuthRequired.bind(this),
+      checkAuth: this.checkAuth.bind(this)
     });
 
-    // Start routing
-    this.components.router.start();
+    // DON'T start the router yet - wait until components are initialized
+    console.log('✅ Router created (not started yet)');
   }
 
   initializeNavigation() {
@@ -249,6 +344,7 @@ export default class App extends Component {
   }
 
   setupGlobalEventListeners() {
+    
     // Listen to service events
     this.services.auth.on('userLogin', this.handleUserLogin.bind(this));
     this.services.auth.on('userLogout', this.handleUserLogout.bind(this));
@@ -292,10 +388,18 @@ export default class App extends Component {
 
   async checkAuthenticationStatus() {
     try {
-      const user = await this.services.auth.getCurrentUser();
-      if (user) {
-        this.setState({ currentUser: user });
-        this.updateNavigationUser(user);
+      // Check if we already have a current user
+      if (this.services.auth.currentUser) {
+        this.setState({ currentUser: this.services.auth.currentUser });
+        this.updateNavigationUser(this.services.auth.currentUser);
+      }
+      // Otherwise validate token if we have one
+      else if (this.services.auth.token) {
+        await this.services.auth.validateToken();
+        if (this.services.auth.currentUser) {
+          this.setState({ currentUser: this.services.auth.currentUser });
+          this.updateNavigationUser(this.services.auth.currentUser);
+        }
       }
     } catch (error) {
       console.error('Error checking authentication status:', error);
@@ -329,6 +433,12 @@ export default class App extends Component {
 
     this.contentContainer = this.container.querySelector('#app-content');
     this.notificationsContainer = this.container.querySelector('#app-notifications');
+
+    // Mount the global notification manager to the notifications container
+    if (this.notificationsContainer && !notifications.element) {
+      console.log('📢 App: Mounting global notification manager');
+      notifications.mount(this.notificationsContainer, true);
+    }
   }
 
   renderContent() {
@@ -371,25 +481,63 @@ export default class App extends Component {
     `;
   }
 
+  // Authentication check for router
+  async checkAuth() {
+    try {
+      // Check if we have a current user or token
+      if (this.services.auth.currentUser) {
+        return true;
+      }
+
+      // Check if we have a token and validate it
+      if (this.services.auth.token) {
+        const result = await this.services.auth.validateToken();
+        return !!result;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error checking auth:', error);
+      return false;
+    }
+  }
+
   // Route handling
   async handleRouteChange(route, params) {
-    console.log('Route change:', route, params);
-    
+    console.log('📍 App: handleRouteChange called');
+    console.log('   Route:', route);
+    console.log('   Params:', params);
+    console.log('   Component:', route.component || route.handler);
+
     this.setState({ currentRoute: route });
-    
+
     try {
-      await this.loadRouteComponent(route.component, params);
+      const componentName = route.component || route.handler;
+      console.log('🔄 App: Loading component:', componentName);
+      await this.loadRouteComponent(componentName, params);
+      console.log('✅ App: Component loaded successfully');
     } catch (error) {
-      console.error('Error loading route component:', error);
+      console.error('❌ App: Error loading route component:', error);
       this.handleShowError('Failed to load page');
     }
   }
 
   async loadRouteComponent(componentName, params = {}) {
-    // Clear current content
+    console.log('🏗️ App: loadRouteComponent called with:', componentName);
+    console.log('   contentContainer:', this.contentContainer);
+
+    // Clear current content and show loading
     if (this.contentContainer) {
-      this.contentContainer.innerHTML = '<div class="loading-spinner"></div>';
+      console.log('🧹 App: Clearing content container');
+      this.contentContainer.innerHTML = '<div class="route-content"><div class="loading-spinner"></div></div>';
+    } else {
+      console.error('⚠️ App: contentContainer is null!');
+      return;
     }
+
+    // Get the route-content div that was just created
+    const routeContainer = this.contentContainer.querySelector('.route-content');
+    console.log('📦 App: routeContainer:', routeContainer);
 
     // Destroy existing component if any
     if (this.currentComponent && this.currentComponent.destroy) {
@@ -398,34 +546,40 @@ export default class App extends Component {
 
     let component = null;
 
+    console.log('🔍 App: Switching on component:', componentName);
     switch (componentName) {
       case 'auth':
-        component = await this.loadAuthComponent();
+        console.log('👤 App: Loading auth component, passing routeContainer');
+        component = await this.loadAuthComponent(routeContainer);
         break;
       case 'dashboard':
-        component = await this.loadDashboardComponent();
+        console.log('📊 App: Loading dashboard component, passing routeContainer');
+        component = await this.loadDashboardComponent(routeContainer);
         break;
       case 'photoGrid':
-        component = await this.loadPhotoGridComponent(params);
+        component = await this.loadPhotoGridComponent(routeContainer, params);
         break;
       case 'photoUpload':
-        component = await this.loadPhotoUploadComponent();
+        component = await this.loadPhotoUploadComponent(routeContainer);
         break;
       case 'search':
-        component = await this.loadSearchComponent();
+        component = await this.loadSearchComponent(routeContainer);
         break;
       case 'settings':
-        component = await this.loadSettingsComponent();
+        component = await this.loadSettingsComponent(routeContainer);
         break;
       default:
+        console.error('❌ App: Unknown component:', componentName);
         throw new Error(`Unknown component: ${componentName}`);
     }
 
+    console.log('✅ App: Component created:', component);
     this.currentComponent = component;
   }
 
-  async loadAuthComponent() {
-    const component = new Auth(this.contentContainer, {
+  async loadAuthComponent(container) {
+    console.log('🏗️ App: loadAuthComponent, container:', container);
+    const component = new AuthComponent(container || this.contentContainer, {
       authService: this.services.auth,
       onLoginSuccess: this.handleLoginSuccess.bind(this),
       onRegisterSuccess: this.handleRegisterSuccess.bind(this)
@@ -434,8 +588,9 @@ export default class App extends Component {
     return component;
   }
 
-  async loadDashboardComponent() {
-    const component = new Dashboard(this.contentContainer, {
+  async loadDashboardComponent(container) {
+    console.log('🏗️ App: loadDashboardComponent, container:', container);
+    const component = new Dashboard(container || this.contentContainer, {
       albumService: this.services.album,
       photoService: this.services.photo,
       searchService: this.services.search,
@@ -498,20 +653,20 @@ export default class App extends Component {
   }
 
   // Event handlers
-  handleAuthRequired() {
-    this.components.router.navigate('/login');
+  async handleAuthRequired() {
+    console.log('Auth required - redirecting to login');
+    // Directly navigate to login without triggering route handler
+    this.components.router.navigate('/login', { replace: true });
   }
 
   handleLoginSuccess(user) {
     this.setState({ currentUser: user });
-    this.updateNavigationUser(user);
     this.components.router.navigate('/dashboard');
     this.showSuccessNotification('Login successful!');
   }
 
   handleRegisterSuccess(user) {
     this.setState({ currentUser: user });
-    this.updateNavigationUser(user);
     this.components.router.navigate('/dashboard');
     this.showSuccessNotification('Registration successful!');
   }
@@ -616,6 +771,10 @@ export default class App extends Component {
     this.eventBus.emit('photoUpdated', photo);
   }
 
+  handlePhotoDelete(photo) {
+    this.eventBus.emit('photoDeleted', photo.id);
+  }
+
   // Album event handlers
   handleAlbumCreated(album) {
     this.showSuccessNotification('Album created successfully');
@@ -717,9 +876,9 @@ export default class App extends Component {
 
   // Utility methods
   updateNavigationUser(user) {
-    if (this.components.navigation) {
-      this.components.navigation.setUser(user);
-    }
+    // Navigation component doesn't currently display user info
+    // This method is reserved for future use
+    console.log('App: User updated:', user);
   }
 
   applyTheme(theme) {
@@ -923,13 +1082,40 @@ export default class App extends Component {
     window.removeEventListener('error', this.handleGlobalError);
     document.removeEventListener('keydown', this.handleGlobalKeydown);
 
-    // Clean up services
-    Object.values(this.services).forEach(service => {
+    // Clean up services (database service should be cleaned up last)
+    const servicesToDestroy = Object.entries(this.services).filter(([key]) => key !== 'database');
+    servicesToDestroy.forEach(([key, service]) => {
       if (service && service.destroy) {
         service.destroy();
       }
     });
 
+    // Clean up database service last
+    if (this.databaseService && this.databaseService.destroy) {
+      this.databaseService.destroy();
+    }
+
     super.destroy();
+  }
+
+  // Add method to get database service for other components that might need it
+  getDatabaseService() {
+    return this.databaseService;
+  }
+
+  // Add missing setState method
+  setState(newState) {
+    this.state = { ...this.state, ...newState };
+    this.updateState();
+  }
+
+  // Add missing photo event handlers
+  handlePhotoView(photo) {
+    this.handleOpenPhoto({ photo, index: 0 });
+  }
+
+  handlePhotoEdit(photo) {
+    // Navigate to edit mode or open edit modal
+    this.eventBus.emit('editPhoto', photo);
   }
 }

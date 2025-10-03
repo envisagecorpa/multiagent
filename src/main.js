@@ -17,9 +17,12 @@ import './styles/search.css';
 
 let app = null;
 
+// Early log to confirm script loading
+console.log('🚀 main.js: Script loaded');
+
 // DOM Content Loaded handler
 function initializeApp() {
-  console.log('Initializing Photo Album Application...');
+  console.log('🎬 main.js: Initializing Photo Album Application...');
   
   try {
     // Get or create app container

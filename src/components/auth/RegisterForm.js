@@ -284,19 +284,28 @@ export class RegisterForm extends Component {
     const passwordInput = this.find('#register-password')
     const confirmInput = this.find('#register-confirm-password')
 
-    this.addEventListener(nameInput, 'blur', () => this.validateName())
-    this.addEventListener(emailInput, 'blur', () => this.validateEmail())
-    this.addEventListener(passwordInput, 'input', () => this.validatePassword())
-    this.addEventListener(confirmInput, 'blur', () => this.validateConfirmPassword())
-    
-    // Clear errors on input
-    this.addEventListener(nameInput, 'input', () => this.clearFieldError('name'))
-    this.addEventListener(emailInput, 'input', () => this.clearFieldError('email'))
-    this.addEventListener(passwordInput, 'input', () => this.clearFieldError('password'))
-    this.addEventListener(confirmInput, 'input', () => this.clearFieldError('confirm-password'))
+    if (nameInput) {
+      this.addEventListener(nameInput, 'blur', () => this.validateName())
+      this.addEventListener(nameInput, 'input', () => this.clearFieldError('name'))
+    }
+
+    if (emailInput) {
+      this.addEventListener(emailInput, 'blur', () => this.validateEmail())
+      this.addEventListener(emailInput, 'input', () => this.clearFieldError('email'))
+    }
+
+    if (passwordInput) {
+      this.addEventListener(passwordInput, 'input', () => this.validatePassword())
+      this.addEventListener(passwordInput, 'input', () => this.clearFieldError('password'))
+    }
+
+    if (confirmInput) {
+      this.addEventListener(confirmInput, 'blur', () => this.validateConfirmPassword())
+      this.addEventListener(confirmInput, 'input', () => this.clearFieldError('confirm-password'))
+    }
   }
 
-  async handleSubmit(e) {
+  handleSubmit = async (e) => {
     e.preventDefault()
 
     if (this.isLoading) return
@@ -314,7 +323,7 @@ export class RegisterForm extends Component {
     this.setLoading(true)
 
     try {
-      const result = await this.authService.registerUser(name, email, password)
+      const result = await this.authService.registerUser(email, password, name)
 
       if (result.success) {
         notifications.success('Account created successfully! Welcome to Photo Album.')

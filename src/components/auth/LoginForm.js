@@ -151,49 +151,89 @@ export class LoginForm extends Component {
   }
 
   onMount() {
+    console.log('🎬 LoginForm: onMount() called')
+    console.log('   this.element:', this.element)
+    console.log('   this.handleSubmit:', this.handleSubmit)
+
     // Add form submission handler
     this.addEventListener(this.element, 'submit', this.handleSubmit)
+    console.log('✅ LoginForm: Submit handler registered')
 
     // Add real-time validation
     const emailInput = this.find('#login-email')
     const passwordInput = this.find('#login-password')
 
-    this.addEventListener(emailInput, 'blur', () => this.validateEmail())
-    this.addEventListener(passwordInput, 'blur', () => this.validatePassword())
-    
-    // Clear errors on input
-    this.addEventListener(emailInput, 'input', () => this.clearFieldError('email'))
-    this.addEventListener(passwordInput, 'input', () => this.clearFieldError('password'))
+    console.log('   emailInput:', emailInput)
+    console.log('   passwordInput:', passwordInput)
+
+    if (emailInput) {
+      this.addEventListener(emailInput, 'blur', () => this.validateEmail())
+      this.addEventListener(emailInput, 'input', () => this.clearFieldError('email'))
+      console.log('✅ LoginForm: Email input listeners registered')
+    }
+
+    if (passwordInput) {
+      this.addEventListener(passwordInput, 'blur', () => this.validatePassword())
+      this.addEventListener(passwordInput, 'input', () => this.clearFieldError('password'))
+      console.log('✅ LoginForm: Password input listeners registered')
+    }
+
+    console.log('🏁 LoginForm: onMount() complete')
   }
 
-  async handleSubmit(e) {
-    e.preventDefault()
+  handleSubmit = async (e) => {
+    console.log('🔑 LoginForm: handleSubmit called')
+    console.log('   event:', e)
+    console.log('   this:', this)
+    console.log('   this.element:', this.element)
+    console.log('   this.authService:', this.authService)
+    console.log('   this.isLoading:', this.isLoading)
 
-    if (this.isLoading) return
+    e.preventDefault()
+    console.log('   preventDefault() called')
+
+    if (this.isLoading) {
+      console.log('⏳ LoginForm: Already loading, returning early')
+      return
+    }
 
     const formData = new FormData(this.element)
-    const email = formData.get('email').trim()
+    const email = formData.get('email')?.trim()
     const password = formData.get('password')
+
+    console.log('📝 LoginForm: Form data extracted')
+    console.log('   email:', email)
+    console.log('   password:', password ? '***' : '(empty)')
 
     // Validate form
     const isValid = this.validateForm(email, password)
-    if (!isValid) return
+    console.log('✓ LoginForm: Form validation result:', isValid)
+    if (!isValid) {
+      console.log('❌ LoginForm: Validation failed, returning')
+      return
+    }
 
+    console.log('🚀 LoginForm: Starting login process')
     this.setLoading(true)
 
     try {
+      console.log('📡 LoginForm: Calling authService.loginUser()')
       const result = await this.authService.loginUser(email, password)
+      console.log('📬 LoginForm: Login result received:', result)
 
       if (result.success) {
+        console.log('✅ LoginForm: Login successful')
         notifications.success('Welcome back! You have been signed in successfully.')
         this.onSuccess(result.user)
       } else {
+        console.log('❌ LoginForm: Login failed:', result.error)
         this.handleLoginError(result.error)
       }
     } catch (error) {
-      console.error('Login error:', error)
+      console.error('💥 LoginForm: Exception during login:', error)
       notifications.error('An unexpected error occurred. Please try again.')
     } finally {
+      console.log('🏁 LoginForm: Setting loading to false')
       this.setLoading(false)
     }
   }

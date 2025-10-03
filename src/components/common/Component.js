@@ -212,6 +212,14 @@ export class Component {
   }
 
   /**
+   * Alias for querySelectorAll for shorter syntax
+   * @param {string} selector - CSS selector
+   */
+  findAll(selector) {
+    return this.querySelectorAll(selector)
+  }
+
+  /**
    * Add CSS class to component element
    * @param {string} className - CSS class name
    */

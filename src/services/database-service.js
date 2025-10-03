@@ -21,25 +21,45 @@ export class DatabaseService {
     }
 
     try {
-      // Initialize SQLite WASM
-      this.sqlite3 = await sqlite3InitModule({
-        print: console.log,
-        printErr: console.error,
-      })
+      console.log('📦 Initializing SQLite WASM...');
 
-      // Create in-memory database (can be changed to persistent later)
-      this.db = new this.sqlite3.oo1.DB(':memory:')
+      // Create timeout for SQLite initialization
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('SQLite WASM initialization timeout')), 8000)
+      );
+
+      // Configure SQLite WASM to run in main thread without OPFS
+      const sqliteInit = sqlite3InitModule({
+        print: console.log,
+        printErr: console.error
+      });
+
+      // Initialize SQLite WASM with timeout
+      this.sqlite3 = await Promise.race([sqliteInit, timeout]);
+      console.log('✅ SQLite WASM initialized');
+
+      // Create in-memory database (avoiding OPFS persistence)
+      // Using ':memory:' explicitly uses the in-memory VFS which doesn't require OPFS
+      console.log('📊 Creating database...');
+      this.db = new this.sqlite3.oo1.DB(':memory:', 'c')
+      console.log('✅ Database created (in-memory, no OPFS)');
       
       // Enable foreign keys
+      console.log('⚙️ Configuring database...');
       this.db.exec('PRAGMA foreign_keys = ON')
       
       // Create schema
+      console.log('🏗️ Creating schema...');
       await this.createSchema()
+      console.log('✅ Schema created');
       
       // Initialize schema version tracking
+      console.log('📝 Initializing schema versioning...');
       await this.initializeSchemaVersioning()
+      console.log('✅ Schema versioning initialized');
       
       this.isInitialized = true
+      console.log('🎉 Database service fully initialized');
       return this.db
     } catch (error) {
       console.error('Failed to initialize database:', error)
